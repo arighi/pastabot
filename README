@@ -1,14 +1,7 @@
 PastaBot
 ========
 
-An AI-based Twitch chat bot that interacts with a LEGO Mindstorm EV3 robot.
-
-This bot is made of two components:
-
- - ev3-server.py: server that runs on the LEGO Mindstorm EV3 unit listening for
-   commands that activate the robots (movement, talking, etc.)
-
- - pastabot.py: a Twitch chat bot based on chatterbot and twitchio
+A Twitch chat bot that interacts with OpenAI.
 
 Overview
 ========
@@ -18,17 +11,11 @@ Overview
   hello pastabot                                     |
   |                                                  |
   v                                                  |
-  PC: ->pastabot.py -> speaking (python's espeak) -> chatterbot response
-        |
-        `-> raspberry pi -> ev3dev (robot) -> ev3-server.py -> moving the robot
-
-The RaspberryPi is simply acting as a network gateway to provide Wi-Fi
-connectivity to the LEGO EV3 unit.
+  pastabot.py -> OpenAI -> OpenAI response ----------^
 
 See also
 ========
 
- - LEGO mindstorm ev3dev (https://www.ev3dev.org/)
- - chatterbot (https://chatterbot.readthedocs.io/en/stable/)
+ - OpenAI (https://openai.com)
  - twitchio (https://github.com/TwitchIO/TwitchIO)
- - Patbot live stream (https://twitch.tv/arighi_violin)
+ - Pastabot live stream (https://twitch.tv/the_pastabot)
