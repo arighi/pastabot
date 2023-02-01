@@ -33,6 +33,10 @@ BOT_COOLDOWN_SEC = 5
 # (only use for testing)!
 PASTACEPTION = False
 
+# List of greetings messages that are simply sent back in chat without going
+# through OpenAI.
+GREETINGS = ('greetings', 'hello', 'heya', 'hey', 'hi', 'yo')
+
 # Main chat bot class
 class Bot(commands.Bot):
     def __init__(self):
@@ -120,6 +124,7 @@ class Bot(commands.Bot):
     async def pastabot(self, ctx: commands.Context):
         now = time()
         if (now - self.timestamp) < BOT_COOLDOWN_SEC:
+            logger.info('pastabot is on cooldown')
             return
         self.timestamp = now
         orig_msg = ctx.message.content.removeprefix("!pastabot").strip()
@@ -128,7 +133,8 @@ class Bot(commands.Bot):
             logger.critical('warning: invalid input message')
             return
         logger.critical(f'input: {msg}')
-        msg = self._openai_response(msg)
+        if not msg.lower().strip() in GREETINGS:
+            msg = self._openai_response(msg)
         # Drop empty responses or responses that are too long
         logger.critical(f'output: {msg}')
         if len(msg) == 0 or len(msg) > 1000:
