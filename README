@@ -13,6 +13,21 @@ Overview
   v                                                  |
   pastabot.py -> OpenAI -> OpenAI response ----------^
 
+How to run pastabot
+===================
+
+Edit cred.py, adding your Twitch auth token and your OpenAI API key, as
+following:
+
+ # XXX: Put your Twitch auth token here
+ TOKEN="oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ # XXX: Put your OpenAI API key here
+ API_KEY='sk-xxxxxxxxxxxxxxxxxxx'
+
+Run the main program:
+
+ $ ./pastabot.py
+
 See also
 ========
 
