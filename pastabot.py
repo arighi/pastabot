@@ -1,127 +1,74 @@
 #!/usr/bin/env python
 #
-# Twitch chat bot to interact with a LEGO Mindstorm EV3 robot.
+# Twitch chat bot that interacts with OpenAI.
 
 import os
-import sys
 import re
+import asyncio
 from twitchio.ext import commands
-from espeak import espeak
 from time import time
-from socket import *
 
-from chatterbot import ChatBot
-from chatterbot.trainers import ListTrainer
-from chatterbot.trainers import ChatterBotCorpusTrainer
+# Twitch login token and OpenAI key are defined in cred.py
+from cred import TOKEN, API_KEY
 
-from profanity_filter import ProfanityFilter
+import openai
+openai.api_key = API_KEY
 
-# Twitch login token is defined in cred.py
-from cred import TOKEN
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.CRITICAL)
 
 ### Bot settings ###
 
 # Twitch identity / channel
-CHANNEL="arighi_violin"
+CHANNEL="the_pastabot"
 BOT_USER="the_pastabot"
 BOT_KEYWORD = 'pastabot'
 
-# Port used by the server (LEGO Mindstorm EV3 robot)
-BOT_SERVER_PORT = 3636
-
 # Cooldown between a response and another
-BOT_COOLDOWN_SEC = 10
+BOT_COOLDOWN_SEC = 5
 
 # Bot responses can trigger other responses if keyword is present
-PASTACEPTION = True
-
-# True: use external robot speaker, False: use PC speaker
-ROBOT_SPEAKER=True
-
-# Set to True to re-run the chat bot training
-REDO_TRAINING = False
+#
+# WARNING: this can trigger loops in the Twitch chat if enabled
+# (only use for testing)!
+PASTACEPTION = False
 
 # Main chat bot class
 class Bot(commands.Bot):
     def __init__(self):
         # Initialize communication with robot
-        self._init_server()
-
-        # Initialize voice
-        espeak.set_voice("en-us")
-
-        # Initialize chat bot
-        self.pf = ProfanityFilter()
-        self.pf.censor_char = '`'
-        self.pf.extra_profane_word_dictionaries = {
-                    'en': {
-                        'idiot', 'stupid', 'ass', 'die', 'crazy',
-                        'immortal', 'cancer',
-                     }}
-        self.bot = ChatBot('pastabot')
-        if REDO_TRAINING:
-            trainer = ChatterBotCorpusTrainer(self.bot)
-            trainer.train(
-                "chatterbot.corpus.english.greetings",
-                "chatterbot.corpus.english.conversations",
-                "chatterbot.corpus.english.emotion",
-                "chatterbot.corpus.english.psychology",
-                "chatterbot.corpus.english.science",
-                "chatterbot.corpus.english.food",
-                "chatterbot.corpus.english.computers",
-                "chatterbot.corpus.english.humor",
-                "chatterbot.corpus.english.health",
-                "chatterbot.corpus.english.ai",
-                "chatterbot.corpus.english.botprofile",
-                "chatterbot.corpus.english.literature",
-                "chatterbot.corpus.english.movies",
-            )
-            print("initial training done")
-
         self.timestamp = time()
+        self.pasta_enabled = True
         super().__init__(token=TOKEN, prefix='!', initial_channels=[CHANNEL])
-
-    # Detect if a robot server is present in the network
-    def _init_server(self):
-        sock = socket(AF_INET, SOCK_DGRAM)
-        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        sock.sendto(b'HELLO', ('255.255.255.255', BOT_SERVER_PORT))
-        message, address = sock.recvfrom(4096)
-        if message == b'ACK':
-            self.server_ip = address[0]
-            print('server is: %s' % self.server_ip)
-
-    # Send a message to the server (robot)
-    def _send_message(self, message):
-        s = socket(AF_INET, SOCK_DGRAM)
-        s.sendto(message, (self.server_ip, 3636))
-        s.close()
-
-    # Say a message
-    def _speak(self, message):
-        if ROBOT_SPEAKER:
-            self._send_message(bytes(message, 'utf-8'))
-        else:
-            espeak.synth(message)
-            while espeak.is_playing():
-                pass
-
-    # Trigger robot movement
-    def _move(self):
-        self._send_message(bytes('MOVE', 'utf-8'))
 
     # Remove the bot keyword from the message that is sent to pastabot
     def _filter_message_in(self, msg):
-        return " ".join([x for x in msg.split(" ") if not BOT_KEYWORD in x])
-
-    # Profanity filter
-    def _filter_message_out(self, msg):
-        return re.sub('`+', 'PASTA', self.pf.censor(msg)).strip()
+        return " ".join([x for x in msg.split(" ") if not BOT_KEYWORD in x.lower()])
 
     # Print a message to the console to notify that pastabot is logged in
     async def event_ready(self):
         print(f'Logged in as {self.nick}')
+
+    # Check if the user that requested the command is a sub
+    async def _sub_check(self, ctx):
+        if ctx.author.is_mod or ctx.author.is_subscriber:
+            return True
+        await ctx.send(f"@{ctx.author.name} this command is reserved to subscribers")
+        return False
+
+    # Check if the user that requested the command is a mod
+    async def _mod_check(self, ctx):
+        if ctx.author.is_mod:
+            return True
+        await ctx.send(f"@{ctx.author.name} this command is reserved to mods")
+        return False
+
+    # Suppress command not found exceptions
+    async def event_command_error(self, ctx, error):
+        if isinstance(error, commands.errors.CommandNotFound):
+            return
+        raise error
 
     # Main chat message handler
     async def event_message(self, msg):
@@ -132,17 +79,42 @@ class Bot(commands.Bot):
         # chat, simply remove it from the message.
         if '!pastabot' in msg.content.lower():
             msg.content.replace('!pastabot', '')
-        if PASTACEPTION or msg.author.name != BOT_USER:
-            if (BOT_KEYWORD in msg.content.lower()):
+        if PASTACEPTION or \
+           (msg.author.name != BOT_USER and msg.author.name != 'streamelements'):
+            if self.pasta_enabled and (BOT_KEYWORD in msg.content.lower()):
                 # Respond to message by triggering the !pastabot command
                 msg.content = '!pastabot ' + msg.content
         await bot.handle_commands(msg)
 
-    # Suppress command not found exceptions
-    async def event_command_error(self, ctx, error):
-        if isinstance(error, commands.errors.CommandNotFound):
-            return
-        raise error
+    # Get response from OpenAI
+    def _openai_response(self, msg):
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=msg,
+            max_tokens=1000,
+            n=1,
+            stop=None,
+            temperature=0.9,
+        )
+        text = response["choices"][0]["text"]
+        output = ' '.join([line for line in text.split('\n') if line.strip() != ''])
+        output = output.lstrip(' ?!')
+        return re.sub(r'^[^\x00-\x7F]+', '', output)
+
+    # Split long response into multiple smaller responses
+    @staticmethod
+    def _split_response(string, length):
+        words = string.split()
+        result = []
+        current = []
+        for word in words:
+            if len(" ".join(current + [word])) <= length:
+                current.append(word)
+            else:
+                result.append(" ".join(current))
+                current = [word]
+        result.append(" ".join(current))
+        return result
 
     # Internal-usage command, used to trigger pastabot response
     @commands.command()
@@ -151,14 +123,36 @@ class Bot(commands.Bot):
         if (now - self.timestamp) < BOT_COOLDOWN_SEC:
             return
         self.timestamp = now
-        msg = ctx.message.content.removeprefix("!pastabot").strip()
-        msg = self._filter_message_in(msg)
-        if msg != '':
-            msg = str(self.bot.get_response(msg))
-            msg = self._filter_message_out(msg)
-            self._speak(msg)
-            self._move()
-            await ctx.send(msg)
+        orig_msg = ctx.message.content.removeprefix("!pastabot").strip()
+        msg = self._filter_message_in(orig_msg)
+        if msg == '':
+            print('>> warning: invalid input message')
+            return
+        print(f'>> input: {msg}')
+        msg = self._openai_response(msg)
+        # Drop empty responses or responses that are too long
+        print(f'>> output: {msg}')
+        if len(msg) == 0 or len(msg) > 1000:
+            msg = 'I have nothing to say'
+        for line in self._split_response(msg, 500):
+            print(f'>> chat: {msg}')
+            await ctx.send(line)
+
+    ### Mod-only commands ###
+
+    @commands.command()
+    async def bot_on(self, ctx: commands.Context):
+        if await self._mod_check(ctx):
+            self.pasta_enabled = True
+            print(f'>> {BOT_KEYWORD} is on')
+            await ctx.send(f'{BOT_KEYWORD} activated')
+
+    @commands.command()
+    async def bot_off(self, ctx: commands.Context):
+        if await self._mod_check(ctx):
+            self.pasta_enabled = False
+            print(f'>> {BOT_KEYWORD} is off')
+            await ctx.send(f"{BOT_KEYWORD} is now sleeping, zzz...")
 
 if __name__ == "__main__":
     bot = Bot()
