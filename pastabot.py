@@ -16,7 +16,6 @@ openai.api_key = API_KEY
 
 import logging
 logger = logging.getLogger()
-logger.setLevel(logging.CRITICAL)
 
 ### Bot settings ###
 
@@ -48,7 +47,7 @@ class Bot(commands.Bot):
 
     # Print a message to the console to notify that pastabot is logged in
     async def event_ready(self):
-        print(f'Logged in as {self.nick}')
+        logger.critical(f'Logged in as {self.nick}')
 
     # Check if the user that requested the command is a sub
     async def _sub_check(self, ctx):
@@ -126,16 +125,16 @@ class Bot(commands.Bot):
         orig_msg = ctx.message.content.removeprefix("!pastabot").strip()
         msg = self._filter_message_in(orig_msg)
         if msg == '':
-            print('>> warning: invalid input message')
+            logger.critical('warning: invalid input message')
             return
-        print(f'>> input: {msg}')
+        logger.critical(f'input: {msg}')
         msg = self._openai_response(msg)
         # Drop empty responses or responses that are too long
-        print(f'>> output: {msg}')
+        logger.critical(f'output: {msg}')
         if len(msg) == 0 or len(msg) > 1000:
             msg = 'I have nothing to say'
         for line in self._split_response(msg, 500):
-            print(f'>> chat: {msg}')
+            logger.critical(f'chat: {msg}')
             await ctx.send(line)
 
     ### Mod-only commands ###
@@ -144,16 +143,19 @@ class Bot(commands.Bot):
     async def bot_on(self, ctx: commands.Context):
         if await self._mod_check(ctx):
             self.pasta_enabled = True
-            print(f'>> {BOT_KEYWORD} is on')
+            logger.critical(f'{BOT_KEYWORD} is on')
             await ctx.send(f'{BOT_KEYWORD} activated')
 
     @commands.command()
     async def bot_off(self, ctx: commands.Context):
         if await self._mod_check(ctx):
             self.pasta_enabled = False
-            print(f'>> {BOT_KEYWORD} is off')
+            logger.critical(f'{BOT_KEYWORD} is off')
             await ctx.send(f"{BOT_KEYWORD} is now sleeping, zzz...")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s >> %(message)s',
+                        datefmt="%Y-%m-%d %H:%M:%S")
     bot = Bot()
     bot.run()
