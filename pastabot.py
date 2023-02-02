@@ -40,7 +40,7 @@ SUB_ONLY = False
 
 # List of greetings messages that are simply sent back in chat without going
 # through OpenAI.
-GREETINGS = ('greetings', 'hello', 'heya', 'hey', 'hi', 'yo')
+GREETINGS = ('greetings', 'hello', 'heya', 'hey', 'hi', 'yo', 'lol', 'lul')
 
 # Main chat bot class
 class Bot(commands.Bot):
