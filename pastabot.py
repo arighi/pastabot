@@ -35,6 +35,9 @@ BOT_COOLDOWN_SEC = 5
 # (only use for testing)!
 PASTACEPTION = False
 
+# Set to True to make pastabot respond only to subs
+SUB_ONLY = False
+
 # List of greetings messages that are simply sent back in chat without going
 # through OpenAI.
 GREETINGS = ('greetings', 'hello', 'heya', 'hey', 'hi', 'yo')
@@ -55,18 +58,18 @@ class Bot(commands.Bot):
     async def event_ready(self):
         logger.critical(f'Logged in as {self.nick}')
 
-    # Check if the user that requested the command is a sub
-    async def _sub_check(self, ctx):
-        if ctx.author.is_mod or ctx.author.is_subscriber:
-            return True
-        await ctx.send(f"@{ctx.author.name} this command is reserved to subscribers")
-        return False
-
     # Check if the user that requested the command is a mod
     async def _mod_check(self, ctx):
         if ctx.author.is_mod:
             return True
-        await ctx.send(f"@{ctx.author.name} this command is reserved to mods")
+        await ctx.send(f"@{ctx.author.name} sorry, this feature is reserved to mods")
+        return False
+
+    # Check if the user that requested the command is a sub (or a mod)
+    async def _sub_check(self, ctx):
+        if ctx.author.is_mod or ctx.author.is_subscriber:
+            return True
+        await ctx.send(f"@{ctx.author.name} sorry, this feature is reserved to subscribers")
         return False
 
     # Suppress command not found exceptions
@@ -124,6 +127,9 @@ class Bot(commands.Bot):
     # Internal-usage command, used to trigger pastabot response
     @commands.command()
     async def pastabot(self, ctx: commands.Context):
+        if SUB_ONLY and not await self._sub_check(ctx):
+            logger.info('pastabot can be used only by subs')
+            return
         now = time()
         if (now - self.timestamp) < BOT_COOLDOWN_SEC:
             logger.info('pastabot is on cooldown')
