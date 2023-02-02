@@ -106,8 +106,7 @@ class Bot(commands.Bot):
         )
         text = response["choices"][0]["text"]
         output = ' '.join([line for line in text.split('\n') if line.strip() != ''])
-        output = output.lstrip(' ?!')
-        return re.sub(r'^[^\x00-\x7F]+', '', output)
+        return output.lstrip(' ?!')
 
     # Split long response into multiple smaller responses
     @staticmethod
