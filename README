@@ -28,6 +28,12 @@ Run the main program:
 
  $ ./pastabot.py
 
+Plugins
+=======
+
+You can implement your own plugins in plugins.py, take a look at the simple
+"hello world" plugin (inside plugins.py) as an example.
+
 See also
 ========
 

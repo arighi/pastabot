@@ -17,6 +17,8 @@ openai.api_key = API_KEY
 import logging
 logger = logging.getLogger()
 
+from plugins import Plugins
+
 ### Bot settings ###
 
 # Twitch identity / channel
@@ -164,4 +166,5 @@ if __name__ == "__main__":
                         format='%(asctime)s >> %(message)s',
                         datefmt="%Y-%m-%d %H:%M:%S")
     bot = Bot()
+    Plugins(bot)
     bot.run()
