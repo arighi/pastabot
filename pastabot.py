@@ -132,7 +132,9 @@ class Bot(commands.Bot):
             return
         now = time()
         if (now - self.timestamp) < BOT_COOLDOWN_SEC:
-            logger.info('pastabot is on cooldown')
+            msg = 'pastabot is on cooldown'
+            logger.info(msg)
+            await ctx.send(msg)
             return
         self.timestamp = now
         orig_msg = ctx.message.content.removeprefix("!pastabot").strip()
